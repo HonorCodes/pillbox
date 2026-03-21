@@ -5,14 +5,10 @@
 <h1 align="center">Pillbox</h1>
 
 <p align="center">
-  Voice dictation for Hyprland. Speak, and text appears in the focused window.
+  Voice dictation for Hyprland. Press a hotkey, speak, text appears.
 </p>
 
 ---
-
-A small glassmorphic pill overlay pops up when you activate it, shows a waveform while you speak, and auto-dismisses after silence. Transcription is handled by [whisper.cpp](https://github.com/ggerganov/whisper.cpp) running as a local server.
-
-Pillbox auto-themes from your Hyprland color config, so it matches your rice out of the box.
 
 <p align="center">
   <img src="assets/pillbox-example.png" alt="Pillbox in action" width="400">
@@ -25,7 +21,19 @@ Pillbox auto-themes from your Hyprland color config, so it matches your rice out
 </p>
 </details>
 
-## Quick Start
+## What is this?
+
+Pillbox is a voice-to-text tool for Linux desktops running Hyprland (or any Wayland compositor with layer-shell support). It works like Apple's dictation or Android's voice typing, but runs entirely on your own hardware — no cloud services, no subscriptions, no data leaves your network.
+
+**How it works:**
+1. You press a hotkey — a small pill-shaped overlay appears at the bottom of your screen
+2. You speak — the pill shows a live waveform
+3. You stop speaking — after 3 seconds of silence, Pillbox records your audio, sends it to a local [whisper.cpp](https://github.com/ggerganov/whisper.cpp) server for transcription, and types the result into whatever window is focused
+4. Press the hotkey again to dismiss early
+
+The pill overlay auto-themes from your Hyprland color config, so it matches your rice out of the box.
+
+## Install
 
 ```bash
 git clone https://github.com/HonorCodes/pillbox.git
@@ -33,110 +41,111 @@ cd pillbox
 ./install.sh
 ```
 
-The interactive installer walks you through everything:
-- Checks dependencies and tells you what to install
-- Copies pillbox to `~/.local/bin/`
-- Optionally sets up whisper-server locally (with model selection)
-- Optionally adds a Hyprland keybinding
+The interactive installer handles everything:
+- Checks dependencies (and tells you exactly what to install for your distro)
+- Installs Pillbox to `~/.local/bin/`
+- Sets up the whisper transcription server with your choice of model
+- Adds a Hyprland keybinding
 
-### Models
+**That's it.** The installer walks you through each step.
 
-The installer lets you choose a whisper model based on your needs:
+## Models & Hardware
 
-| Model | Size | Speed | Accuracy | Best for |
-|-------|------|-------|----------|----------|
-| `tiny.en` | ~75MB | Fastest | Basic | Quick notes, low-power machines |
-| `base.en` | ~148MB | Fast | Good | Daily use without GPU |
-| `small.en` | ~488MB | Moderate | Great | Balanced quality/speed |
-| `large-v3-turbo` | ~1.5GB | Fast (GPU) | Best | Recommended with NVIDIA GPU |
+Pillbox uses OpenAI's Whisper speech recognition model via [whisper.cpp](https://github.com/ggerganov/whisper.cpp). You choose a model size during install — bigger models are more accurate but need more resources.
 
-GPU is auto-detected. Without one, the installer defaults to `base.en`.
+| Model | Download | VRAM / RAM | Inference | Accuracy | Recommended for |
+|-------|----------|-----------|-----------|----------|-----------------|
+| `tiny.en` | 75 MB | ~400 MB | ~0.1s | Basic | Raspberry Pi, old laptops, quick notes |
+| `base.en` | 148 MB | ~500 MB | ~0.3s | Good | Any modern CPU, daily use without GPU |
+| `small.en` | 488 MB | ~1 GB | ~0.8s | Great | Mid-range CPU, or iGPU with Vulkan |
+| `large-v3-turbo` | 1.5 GB | ~3 GB | ~0.5s (GPU) | Best | **NVIDIA GPU recommended** (GTX 1060+) |
+
+**Inference times** are approximate for a 5-second audio clip. GPU times assume NVIDIA with CUDA.
+
+**Recommendations:**
+- **No GPU?** Use `base.en` — fast enough on any modern CPU (i5/Ryzen 5 or better)
+- **NVIDIA GPU?** Use `large-v3-turbo` — best accuracy, runs fast with CUDA
+- **AMD GPU?** Use `small.en` — Vulkan support works but is slower than CUDA
+- **Laptop / battery life matters?** Use `tiny.en` or `base.en` to minimize power draw
+
+The installer auto-detects your GPU and suggests the right model.
 
 ## Usage
 
-Press your keybinding (default: `SUPER+Space`). Speak. The pill shows a waveform while you talk. When you stop speaking (3 seconds of silence), the pill dismisses and your transcribed text appears in the focused window.
+| Action | What happens |
+|--------|-------------|
+| Press hotkey | Pill appears, recording starts |
+| Speak | Waveform animates |
+| Stop speaking (3s) | Auto-stops, transcribes, types text |
+| Press hotkey again | Instant dismiss, transcribes what you said |
+| Click stop button | Same as pressing hotkey again |
 
-Press the keybinding again to dismiss early. Click the stop button on the pill for the same effect.
-
-## Server Setup
-
-Pillbox sends recorded audio to a whisper-server for transcription. The installer can set this up for you, or you can do it manually:
-
-```bash
-# NVIDIA GPU (fast):
-sudo ./setup-server.sh
-
-# Specific model:
-sudo ./setup-server.sh --model=small.en
-
-# CPU-only (no GPU):
-sudo ./setup-server.sh --cpu
-
-# Custom port/threads:
-sudo ./setup-server.sh --port=9090 --threads=8
-```
-
-**Remote server:** Run `setup-server.sh` on the remote machine, then set the URL in your config:
-```conf
-# ~/.config/pillbox/pillbox.conf
-server_url = http://your-server-ip:8080
-```
+Text is also copied to your clipboard automatically.
 
 ## Configuration
 
-Edit `~/.config/pillbox/pillbox.conf` (Hyprland-style `key = value`):
+Edit `~/.config/pillbox/pillbox.conf`:
 
 ```conf
-# Server
+# Whisper server URL (default: localhost)
 server_url = http://localhost:8080
 
-# Behavior
-silence_threshold = -20    # dB — raise for noisy environments
-silence_duration = 3.0     # seconds of silence before auto-stop
+# Silence detection
+silence_threshold = -20    # dB — raise for noisy rooms, lower for quiet
+silence_duration = 3.0     # seconds before auto-stop
 
-# Appearance
-margin_bottom = 30         # auto-detected from Hyprland gaps_out
+# Pill size (pixels)
 width = 90
 height = 32
 num_bars = 5
 
-# Theme (auto-detected from Hyprland if not set)
-# theme_source = ~/.config/theme/colors.conf
-# background = 0a0a0f
-# foreground = cdd6f4
-# accent = f38ba8
-# border = cba6f7
+# Bottom margin — auto-detected from Hyprland's gaps_out if not set
+# margin_bottom = 30
 ```
 
 ## Theming
 
-Pillbox auto-detects your Hyprland color theme from:
-- `~/.config/theme/colors.conf`
-- `~/.config/hypr/colors.conf`
+Pillbox auto-reads your Hyprland color theme from `~/.config/theme/colors.conf` or `~/.config/hypr/colors.conf` and maps:
 
-It reads `$variable = hexvalue` definitions and maps them:
-
-| Hyprland variable | Pillbox element |
+| Theme variable | Pillbox element |
 |---|---|
-| `$base` or `$surface` | Pill background |
+| `$base` / `$surface` | Pill background |
 | `$text` | Waveform bars |
-| `$mauve` or `$lavender` | Pill border + stop button |
+| `$mauve` / `$lavender` | Border + stop button |
 
-Colors auto-contrast: light waveform on dark backgrounds, dark on light. Stop button icon switches between white and black based on the border color luminance.
+Colors auto-contrast (light bars on dark backgrounds, dark on light). Override anything in `pillbox.conf`:
 
-Override any color in `pillbox.conf`. If no theme is found, Pillbox uses a dark glassmorphic default that looks good on most setups.
+```conf
+background = 1a1b26
+border = 7aa2f7
+```
 
-## Requirements
+If no theme is found, Pillbox uses a dark default that works on most setups.
 
-- [Hyprland](https://hyprland.org/) (or any Wayland compositor with layer-shell)
-- Python 3.10+ with PyGObject
-- GTK4 + gtk4-layer-shell
-- GStreamer with good plugins
-- PipeWire (`pw-record`)
-- [wtype](https://github.com/atx/wtype)
-- [wl-clipboard](https://github.com/bugaevc/wl-clipboard)
-- curl
-- A running [whisper-server](https://github.com/ggerganov/whisper.cpp) instance
+## Remote Server
+
+By default, `install.sh` sets up whisper-server on the same machine. If you have a more powerful machine (e.g., a server with a dedicated GPU), you can run the server there instead:
+
+```bash
+# On the server:
+sudo ./setup-server.sh --model=large-v3-turbo
+
+# On your laptop, edit config:
+# ~/.config/pillbox/pillbox.conf
+server_url = http://your-server-ip:8080
+```
+
+This gives you the accuracy of the large model without using your laptop's GPU.
+
+## Uninstall
+
+```bash
+rm ~/.local/bin/pillbox.py ~/.local/bin/pillbox-toggle.sh
+rm -r ~/.config/pillbox/
+# Remove the keybinding lines from ~/.config/hypr/hyprland.conf
+# If you set up the server:
+sudo systemctl disable --now whisper-server
+```
 
 ## License
 
