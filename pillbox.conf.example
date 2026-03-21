@@ -10,23 +10,21 @@ server_url = http://localhost:8080
 
 # ── Behavior ──
 # Silence threshold in dB. Speech above this triggers recording.
-# Raise if background noise causes false triggers (e.g., music).
+# Raise if background noise causes false triggers (e.g., music playing).
 # Lower if soft speech isn't detected.
 silence_threshold = -20
 
 # Seconds of silence after speech before auto-stopping.
 silence_duration = 3.0
 
-# ── Visual ──
-# Pill position on screen.
-position = bottom
-
+# ── Appearance ──
 # Distance from screen edge (pixels).
-margin_bottom = 30
+# Auto-detected from Hyprland gaps_out if not set.
+# margin_bottom = 30
 
 # Pill dimensions (pixels).
-width = 100
-height = 40
+width = 90
+height = 32
 
 # Number of waveform bars.
 num_bars = 5
@@ -38,9 +36,17 @@ num_bars = 5
 #   ~/.config/hypr/colors.conf
 # theme_source = ~/.config/theme/colors.conf
 
-# Color overrides (6-digit hex without #).
+# Color overrides (6-digit hex, no #).
 # These override any colors loaded from the theme source.
+#
+# Pill background (from $base or $surface):
 # background = 0a0a0f
+#
+# Waveform bars (from $text, auto-contrasts against background):
 # foreground = cdd6f4
+#
+# Stop button accent (from $red):
 # accent = f38ba8
-# border = 45475a
+#
+# Pill border + stop button background (from $mauve or $lavender):
+# border = cba6f7

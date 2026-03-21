@@ -27,37 +27,52 @@ Pillbox auto-themes from your Hyprland color config, so it matches your rice out
 
 ## Quick Start
 
-### 1. Install dependencies
-
-**Arch Linux:**
 ```bash
-sudo pacman -S python-gobject gtk4 gtk4-layer-shell \
-  gst-plugins-good wtype wl-clipboard curl
+git clone https://github.com/HonorCodes/pillbox.git
+cd pillbox
+./install.sh
 ```
 
-**Ubuntu/Debian:**
+The interactive installer walks you through everything:
+- Checks dependencies and tells you what to install
+- Copies pillbox to `~/.local/bin/`
+- Optionally sets up whisper-server locally (with model selection)
+- Optionally adds a Hyprland keybinding
+
+### Models
+
+The installer lets you choose a whisper model based on your needs:
+
+| Model | Size | Speed | Accuracy | Best for |
+|-------|------|-------|----------|----------|
+| `tiny.en` | ~75MB | Fastest | Basic | Quick notes, low-power machines |
+| `base.en` | ~148MB | Fast | Good | Daily use without GPU |
+| `small.en` | ~488MB | Moderate | Great | Balanced quality/speed |
+| `large-v3-turbo` | ~1.5GB | Fast (GPU) | Best | Recommended with NVIDIA GPU |
+
+GPU is auto-detected. Without one, the installer defaults to `base.en`.
+
+## Usage
+
+Press your keybinding (default: `SUPER+Space`). Speak. The pill shows a waveform while you talk. When you stop speaking (3 seconds of silence), the pill dismisses and your transcribed text appears in the focused window.
+
+Press the keybinding again to dismiss early. Click the stop button on the pill for the same effect.
+
+## Server Setup
+
+Pillbox sends recorded audio to a whisper-server for transcription. The installer can set this up for you, or you can do it manually:
+
 ```bash
-sudo apt install python3-gi gir1.2-gtk-4.0 \
-  gir1.2-gtk4layershell-1.0 gstreamer1.0-plugins-good \
-  wtype wl-clipboard curl pipewire
-```
-
-### 2. Set up the whisper server
-
-Pillbox sends recorded audio to a whisper-server instance for transcription. Run the setup script on whichever machine has a GPU (can be the same machine):
-
-```bash
-# With NVIDIA GPU (fast):
+# NVIDIA GPU (fast):
 sudo ./setup-server.sh
 
-# CPU-only (slower but works on any machine):
+# Specific model:
+sudo ./setup-server.sh --model=small.en
+
+# CPU-only (no GPU):
 sudo ./setup-server.sh --cpu
-```
 
-This builds whisper.cpp, downloads the `large-v3-turbo` model (~1.5GB), and creates a systemd service on port 8080.
-
-**Custom port or thread count:**
-```bash
+# Custom port/threads:
 sudo ./setup-server.sh --port=9090 --threads=8
 ```
 
@@ -67,66 +82,30 @@ sudo ./setup-server.sh --port=9090 --threads=8
 server_url = http://your-server-ip:8080
 ```
 
-### 3. Install Pillbox
-
-```bash
-git clone https://github.com/HonorCodes/pillbox.git
-cd pillbox
-./install.sh
-```
-
-This copies `pillbox.py` and `pillbox-toggle.sh` to `~/.local/bin/` and creates a default config at `~/.config/pillbox/pillbox.conf`.
-
-### 4. Add a keybinding
-
-Add these lines to `~/.config/hypr/hyprland.conf`:
-
-```conf
-# Voice dictation (choose any key combo you like)
-bind = $mainMod, space, exec, ~/.local/bin/pillbox-toggle.sh
-
-# Glassmorphic blur for the pill overlay (optional)
-layerrule = blur on, match:namespace pillbox
-layerrule = ignore_alpha 0.3, match:namespace pillbox
-```
-
-Reload: `hyprctl reload`
-
-### 5. Use it
-
-Press your keybinding. Speak. The pill shows a waveform while you talk. When you stop speaking (3 seconds of silence), the pill dismisses and your transcribed text appears in the focused window.
-
-Press the keybinding again to dismiss early. Click the stop button on the pill for the same effect.
-
 ## Configuration
 
-Edit `~/.config/pillbox/pillbox.conf`:
+Edit `~/.config/pillbox/pillbox.conf` (Hyprland-style `key = value`):
 
 ```conf
-# Server URL (default: local whisper-server)
+# Server
 server_url = http://localhost:8080
 
-# Silence threshold in dB — raise if background noise triggers it
-silence_threshold = -20
+# Behavior
+silence_threshold = -20    # dB — raise for noisy environments
+silence_duration = 3.0     # seconds of silence before auto-stop
 
-# Seconds of silence before auto-stopping
-silence_duration = 3.0
-
-# Pill appearance
-position = bottom
-margin_bottom = 30
-width = 100
-height = 40
+# Appearance
+margin_bottom = 30         # auto-detected from Hyprland gaps_out
+width = 90
+height = 32
 num_bars = 5
 
-# Theme source (auto-detected from common Hyprland paths if not set)
+# Theme (auto-detected from Hyprland if not set)
 # theme_source = ~/.config/theme/colors.conf
-
-# Color overrides (6-digit hex, no #)
 # background = 0a0a0f
 # foreground = cdd6f4
 # accent = f38ba8
-# border = 45475a
+# border = cba6f7
 ```
 
 ## Theming
@@ -141,10 +120,11 @@ It reads `$variable = hexvalue` definitions and maps them:
 |---|---|
 | `$base` or `$surface` | Pill background |
 | `$text` | Waveform bars |
-| `$red` | Stop button |
-| `$overlay` | Pill border |
+| `$mauve` or `$lavender` | Pill border + stop button |
 
-Override any color in `pillbox.conf`. If no theme is found, Pillbox uses a dark glassmorphic default.
+Colors auto-contrast: light waveform on dark backgrounds, dark on light. Stop button icon switches between white and black based on the border color luminance.
+
+Override any color in `pillbox.conf`. If no theme is found, Pillbox uses a dark glassmorphic default that looks good on most setups.
 
 ## Requirements
 
@@ -153,10 +133,10 @@ Override any color in `pillbox.conf`. If no theme is found, Pillbox uses a dark 
 - GTK4 + gtk4-layer-shell
 - GStreamer with good plugins
 - PipeWire (`pw-record`)
-- [wtype](https://github.com/atx/wtype) (Wayland text input)
+- [wtype](https://github.com/atx/wtype)
 - [wl-clipboard](https://github.com/bugaevc/wl-clipboard)
 - curl
-- A running [whisper-server](https://github.com/ggerganov/whisper.cpp) instance (local or remote)
+- A running [whisper-server](https://github.com/ggerganov/whisper.cpp) instance
 
 ## License
 
