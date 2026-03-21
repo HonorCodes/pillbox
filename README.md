@@ -88,7 +88,7 @@ Edit `~/.config/pillbox/pillbox.conf`:
 
 ```conf
 # Whisper server URL (default: localhost)
-server_url = http://localhost:8080
+server_url = http://localhost:9876
 
 # Silence detection
 silence_threshold = -20    # dB — raise for noisy rooms, lower for quiet
@@ -132,7 +132,7 @@ sudo ./setup-server.sh --model=large-v3-turbo
 
 # On your laptop, edit config:
 # ~/.config/pillbox/pillbox.conf
-server_url = http://your-server-ip:8080
+server_url = http://your-server-ip:9876
 ```
 
 This gives you the accuracy of the large model without using your laptop's GPU.

@@ -4,9 +4,9 @@
 
 # ── Server ──
 # URL of your whisper-server instance (whisper.cpp HTTP API).
-# Default: http://localhost:8080
+# Default: http://localhost:9876
 # For remote servers, set to the server's address.
-server_url = http://localhost:8080
+server_url = http://localhost:9876
 
 # ── Behavior ──
 # Silence threshold in dB. Speech above this triggers recording.

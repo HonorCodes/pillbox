@@ -13,7 +13,7 @@ set -euo pipefail
 MODEL_NAME="large-v3-turbo"
 MODEL_DIR="/opt/whisper/models"
 INSTALL_PREFIX="/usr/local"
-PORT=8080
+PORT=9876
 THREADS=4
 CPU_ONLY=false
 

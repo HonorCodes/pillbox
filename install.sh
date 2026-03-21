@@ -242,8 +242,13 @@ else
 
         ok "Selected model: $MODEL_NAME"
 
+        SERVER_PORT=$(ask_input \
+            "Server port:" "9876")
+        printf "\n"
+
         SUDO_ARGS=("sudo" "$SCRIPT_DIR/setup-server.sh"
-            "--model=$MODEL_NAME")
+            "--model=$MODEL_NAME"
+            "--port=$SERVER_PORT")
         if [[ "$HAS_GPU" != "true" ]]; then
             SUDO_ARGS+=("--cpu")
         fi
@@ -257,6 +262,13 @@ else
             printf "\n"
             "${SUDO_ARGS[@]}"
             INSTALLED_SERVER=true
+            # Update config with chosen port
+            if [[ "$SERVER_PORT" != "9876" ]] && \
+               [[ -f "$CONFIG_DIR/pillbox.conf" ]]; then
+                sed -i "s|http://localhost:9876|http://localhost:${SERVER_PORT}|" \
+                    "$CONFIG_DIR/pillbox.conf"
+                ok "Config updated with port $SERVER_PORT"
+            fi
         else
             warn "Skipped server setup"
             info "Run manually: sudo ./setup-server.sh"
