@@ -1,0 +1,46 @@
+# Pillbox Configuration
+# Copy to ~/.config/pillbox/pillbox.conf and edit.
+# Syntax follows Hyprland conventions: key = value
+
+# ── Server ──
+# URL of your whisper-server instance (whisper.cpp HTTP API).
+# Default: http://localhost:8080
+# For remote servers, set to the server's address.
+server_url = http://localhost:8080
+
+# ── Behavior ──
+# Silence threshold in dB. Speech above this triggers recording.
+# Raise if background noise causes false triggers (e.g., music).
+# Lower if soft speech isn't detected.
+silence_threshold = -20
+
+# Seconds of silence after speech before auto-stopping.
+silence_duration = 3.0
+
+# ── Visual ──
+# Pill position on screen.
+position = bottom
+
+# Distance from screen edge (pixels).
+margin_bottom = 30
+
+# Pill dimensions (pixels).
+width = 100
+height = 40
+
+# Number of waveform bars.
+num_bars = 5
+
+# ── Theme ──
+# Path to Hyprland-style color config ($variable = hexvalue).
+# Auto-detected from common locations if not set:
+#   ~/.config/theme/colors.conf
+#   ~/.config/hypr/colors.conf
+# theme_source = ~/.config/theme/colors.conf
+
+# Color overrides (6-digit hex without #).
+# These override any colors loaded from the theme source.
+# background = 0a0a0f
+# foreground = cdd6f4
+# accent = f38ba8
+# border = 45475a
