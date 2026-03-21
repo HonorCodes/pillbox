@@ -6,12 +6,12 @@ set -euo pipefail
 # and sets it up as a systemd service.
 #
 # Usage:
-#   sudo ./setup-server.sh          # Auto-detect GPU
-#   sudo ./setup-server.sh --cpu    # Force CPU-only build
+#   sudo ./setup-server.sh                          # Auto-detect GPU, large-v3-turbo
+#   sudo ./setup-server.sh --cpu                    # Force CPU-only build
+#   sudo ./setup-server.sh --model=small.en         # Use a smaller model
 
-MODEL_URL="https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo.bin"
+MODEL_NAME="large-v3-turbo"
 MODEL_DIR="/opt/whisper/models"
-MODEL_FILE="$MODEL_DIR/ggml-large-v3-turbo.bin"
 INSTALL_PREFIX="/usr/local"
 PORT=8080
 THREADS=4
@@ -22,8 +22,12 @@ for arg in "$@"; do
         --cpu) CPU_ONLY=true ;;
         --port=*) PORT="${arg#*=}" ;;
         --threads=*) THREADS="${arg#*=}" ;;
+        --model=*) MODEL_NAME="${arg#*=}" ;;
     esac
 done
+
+MODEL_URL="https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-${MODEL_NAME}.bin"
+MODEL_FILE="$MODEL_DIR/ggml-${MODEL_NAME}.bin"
 
 echo "=== Pillbox Server Setup ==="
 echo ""
@@ -97,7 +101,7 @@ rm -rf "$BUILD_DIR"
 echo ""
 
 # ── Step 4: Download model ──
-echo "── Downloading large-v3-turbo model ──"
+echo "── Downloading $MODEL_NAME model ──"
 mkdir -p "$MODEL_DIR"
 if [[ ! -f "$MODEL_FILE" ]]; then
     curl -L --progress-bar -o "$MODEL_FILE" "$MODEL_URL"
