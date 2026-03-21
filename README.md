@@ -5,7 +5,8 @@
 <h1 align="center">Pillbox</h1>
 
 <p align="center">
-  Voice dictation for Hyprland. Press a hotkey, speak, text appears.
+  A Hyprland-native voice dictation frontend powered by
+  <a href="https://github.com/ggerganov/whisper.cpp">whisper.cpp</a>
 </p>
 
 ---
@@ -23,15 +24,27 @@
 
 ## What is this?
 
-Pillbox is a voice-to-text tool for Linux desktops running Hyprland (or any Wayland compositor with layer-shell support). It works like Apple's dictation or Android's voice typing, but runs entirely on your own hardware — no cloud services, no subscriptions, no data leaves your network.
+Pillbox is a dictation frontend for Hyprland that integrates [whisper.cpp](https://github.com/ggerganov/whisper.cpp) with a themed pill overlay. It handles the glue between audio capture, the whisper transcription server, and typing the result into your focused window — so you get a dictation experience similar to macOS or Android, but running entirely on your own hardware.
+
+**Pillbox provides:**
+- A pill-shaped Wayland overlay (via GTK4 + layer-shell) with live waveform
+- Auto-theming from your Hyprland color config
+- Silence detection and hotkey toggle
+- An interactive installer that sets up whisper.cpp for you
+
+**Pillbox relies on:**
+- [whisper.cpp](https://github.com/ggerganov/whisper.cpp) for speech recognition (OpenAI's Whisper model)
+- [PipeWire](https://pipewire.org/) for audio capture
+- [wtype](https://github.com/atx/wtype) for typing into Wayland windows
+- [GTK4](https://gtk.org/) + [gtk4-layer-shell](https://github.com/wmww/gtk4-layer-shell) for the overlay
 
 **How it works:**
-1. You press a hotkey — a small pill-shaped overlay appears at the bottom of your screen
-2. You speak — the pill shows a live waveform
-3. You stop speaking — after 3 seconds of silence, Pillbox records your audio, sends it to a local [whisper.cpp](https://github.com/ggerganov/whisper.cpp) server for transcription, and types the result into whatever window is focused
+1. Press a hotkey — a small pill overlay appears at the bottom of your screen
+2. Speak — the pill shows a live waveform
+3. Stop speaking — after 3 seconds of silence, your audio is sent to a local whisper.cpp server for transcription, and the result is typed into whatever window is focused
 4. Press the hotkey again to dismiss early
 
-The pill overlay auto-themes from your Hyprland color config, so it matches your rice out of the box.
+No cloud services, no subscriptions, no data leaves your network. The pill auto-themes from your Hyprland colors so it matches your rice out of the box.
 
 ## Install
 
