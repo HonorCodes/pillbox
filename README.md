@@ -6,7 +6,7 @@
 
 <p align="center">
   A Hyprland-native voice dictation frontend powered by
-  <a href="https://github.com/ggerganov/whisper.cpp">whisper.cpp</a>
+  <a href="https://github.com/ggml-org/whisper.cpp">whisper.cpp</a>
 </p>
 
 ---
@@ -24,7 +24,7 @@
 
 ## What is this?
 
-Pillbox is a dictation frontend for Hyprland that integrates [whisper.cpp](https://github.com/ggerganov/whisper.cpp) with a themed pill overlay. It handles the glue between audio capture, the whisper transcription server, and typing the result into your focused window — so you get a dictation experience similar to macOS or Android, but running entirely on your own hardware.
+Pillbox is a dictation frontend for Hyprland that integrates [whisper.cpp](https://github.com/ggml-org/whisper.cpp) with a themed pill overlay. It handles the glue between audio capture, the whisper transcription server, and typing the result into your focused window — so you get a dictation experience similar to macOS or Android, but running entirely on your own hardware.
 
 **Pillbox provides:**
 - A pill-shaped Wayland overlay (via GTK4 + layer-shell) with live waveform
@@ -33,7 +33,7 @@ Pillbox is a dictation frontend for Hyprland that integrates [whisper.cpp](https
 - An interactive installer that sets up whisper.cpp for you
 
 **Pillbox relies on:**
-- [whisper.cpp](https://github.com/ggerganov/whisper.cpp) for speech recognition (OpenAI's Whisper model)
+- [whisper.cpp](https://github.com/ggml-org/whisper.cpp) for speech recognition (OpenAI's Whisper model, pinned to v1.8.4)
 - [PipeWire](https://pipewire.org/) for audio capture
 - [wtype](https://github.com/atx/wtype) for typing into Wayland windows
 - [GTK4](https://gtk.org/) + [gtk4-layer-shell](https://github.com/wmww/gtk4-layer-shell) for the overlay
@@ -44,7 +44,7 @@ Pillbox is a dictation frontend for Hyprland that integrates [whisper.cpp](https
 3. Stop speaking — after 3 seconds of silence, your audio is sent to a local whisper.cpp server for transcription, and the result is typed into whatever window is focused
 4. Press the hotkey again to dismiss early
 
-No cloud services, no subscriptions, no data leaves your network. The pill auto-themes from your Hyprland colors so it matches your rice out of the box.
+No cloud services, no subscriptions, no data leaves your machine. By default, the server binds to `127.0.0.1` — nothing is exposed to your network unless you explicitly opt in. The pill auto-themes from your Hyprland colors so it matches your rice out of the box.
 
 ## Install
 
@@ -64,13 +64,13 @@ The interactive installer handles everything:
 
 ## Models & Hardware
 
-Pillbox uses OpenAI's Whisper speech recognition model via [whisper.cpp](https://github.com/ggerganov/whisper.cpp). You choose a model size during install — bigger models are more accurate but need more resources.
+Pillbox uses OpenAI's Whisper speech recognition model via [whisper.cpp](https://github.com/ggml-org/whisper.cpp). You choose a model size during install — bigger models are more accurate but need more resources.
 
 | Model | Download | VRAM / RAM | Inference | Accuracy | Recommended for |
 |-------|----------|-----------|-----------|----------|-----------------|
 | `tiny.en` | 75 MB | ~400 MB | ~0.1s | Basic | Raspberry Pi, old laptops, quick notes |
 | `base.en` | 148 MB | ~500 MB | ~0.3s | Good | Any modern CPU, daily use without GPU |
-| `small.en` | 488 MB | ~1 GB | ~0.8s | Great | Mid-range CPU, or iGPU with Vulkan |
+| `small.en` | 488 MB | ~1 GB | ~0.8s | Great | Mid-range CPU (i5/Ryzen 5+) |
 | `large-v3-turbo` | 1.5 GB | ~3 GB | ~0.5s (GPU) | Best | **NVIDIA GPU recommended** (GTX 1060+) |
 
 **Inference times** are approximate for a 5-second audio clip. GPU times assume NVIDIA with CUDA.
@@ -78,8 +78,10 @@ Pillbox uses OpenAI's Whisper speech recognition model via [whisper.cpp](https:/
 **Recommendations:**
 - **No GPU?** Use `base.en` — fast enough on any modern CPU (i5/Ryzen 5 or better)
 - **NVIDIA GPU?** Use `large-v3-turbo` — best accuracy, runs fast with CUDA
-- **AMD GPU?** Use `small.en` — Vulkan support works but is slower than CUDA
+- **No NVIDIA GPU?** Use `base.en` or `small.en` on CPU — the server currently builds with CUDA or CPU only
 - **Laptop / battery life matters?** Use `tiny.en` or `base.en` to minimize power draw
+
+The `.en` models are English-only and more accurate for English. For other languages, use `large-v3-turbo` and set `--language=auto` during server setup.
 
 The installer auto-detects your GPU and suggests the right model.
 
@@ -137,18 +139,44 @@ If no theme is found, Pillbox uses a dark default that works on most setups.
 
 ## Remote Server
 
-By default, `install.sh` sets up whisper-server on the same machine. If you have a more powerful machine (e.g., a server with a dedicated GPU), you can run the server there instead:
+By default, the server binds to `127.0.0.1` (localhost only). If you want to run the server on a separate, more powerful machine:
 
 ```bash
-# On the server:
-sudo ./setup-server.sh --model=large-v3-turbo
+# On the server (--bind exposes to LAN):
+sudo ./setup-server.sh --model=large-v3-turbo --bind=0.0.0.0
 
 # On your laptop, edit config:
 # ~/.config/pillbox/pillbox.conf
 server_url = http://your-server-ip:9876
 ```
 
-This gives you the accuracy of the large model without using your laptop's GPU.
+This gives you the accuracy of the large model without using your laptop's GPU. The installer asks about LAN binding during setup.
+
+## Troubleshooting
+
+**Pill doesn't appear:**
+- Is `gtk4-layer-shell` installed? The toggle script will show a notification if it can't find it.
+- Try running manually: `~/.local/bin/pillbox-toggle.sh` — check terminal for errors.
+- Verify your Hyprland config has the keybinding: `grep pillbox ~/.config/hypr/hyprland.conf`
+
+**Waveform is flat / no audio:**
+- Check your default PipeWire source: `wpctl status | grep -A3 Sources`
+- Make sure the correct microphone is set as default: `wpctl set-default <id>`
+- Test recording manually: `pw-record --rate 16000 --channels 1 --format s16 /tmp/test.wav` then play it back
+
+**Server not reachable / no transcription:**
+- Is whisper-server running? `systemctl status whisper-server`
+- Test the API directly: `curl -F "file=@test.wav" http://localhost:9876/inference`
+- Check server logs: `journalctl -u whisper-server -n 20`
+
+**Text doesn't appear in focused window:**
+- `wtype` requires the target window to accept Wayland text input. Some Electron apps may block it — check your clipboard instead (`wl-paste`).
+- Try a simple test: `wtype "hello"` in a terminal — does it type?
+
+**Missing Python/GStreamer bindings:**
+- If you see `gi.require_version` errors, install the GI typelib packages for your distro.
+- Arch: `sudo pacman -S python-gobject gtk4 gtk4-layer-shell gst-plugins-good`
+- Ubuntu: `sudo apt install python3-gi gir1.2-gtk-4.0 gir1.2-gtk4layershell-1.0 gstreamer1.0-plugins-good`
 
 ## Uninstall
 

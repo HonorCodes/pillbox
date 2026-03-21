@@ -9,6 +9,8 @@ set -euo pipefail
 #   sudo ./setup-server.sh                          # Auto-detect GPU, large-v3-turbo
 #   sudo ./setup-server.sh --cpu                    # Force CPU-only build
 #   sudo ./setup-server.sh --model=small.en         # Use a smaller model
+#   sudo ./setup-server.sh --bind=0.0.0.0           # Listen on all interfaces
+#   sudo ./setup-server.sh --language=auto           # Auto-detect language
 
 MODEL_NAME="large-v3-turbo"
 MODEL_DIR="/opt/whisper/models"
@@ -16,6 +18,8 @@ INSTALL_PREFIX="/usr/local"
 PORT=9876
 THREADS=4
 CPU_ONLY=false
+BIND_HOST="127.0.0.1"
+LANGUAGE="en"
 
 for arg in "$@"; do
     case "$arg" in
@@ -23,6 +27,8 @@ for arg in "$@"; do
         --port=*) PORT="${arg#*=}" ;;
         --threads=*) THREADS="${arg#*=}" ;;
         --model=*) MODEL_NAME="${arg#*=}" ;;
+        --bind=*) BIND_HOST="${arg#*=}" ;;
+        --language=*) LANGUAGE="${arg#*=}" ;;
     esac
 done
 
@@ -75,7 +81,7 @@ echo ""
 echo "── Building whisper.cpp ──"
 BUILD_DIR=$(mktemp -d)
 cd "$BUILD_DIR"
-git clone --depth 1 https://github.com/ggerganov/whisper.cpp.git .
+git clone --depth 1 --branch v1.8.4 https://github.com/ggml-org/whisper.cpp.git .
 
 CMAKE_ARGS=(
     -B build
@@ -123,9 +129,9 @@ Type=simple
 ExecStart=$INSTALL_PREFIX/bin/whisper-server \\
     -m $MODEL_FILE \\
     -t $THREADS \\
-    --host 0.0.0.0 \\
+    --host $BIND_HOST \\
     --port $PORT \\
-    -l en
+    -l $LANGUAGE
 Restart=on-failure
 RestartSec=5
 

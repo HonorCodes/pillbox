@@ -91,6 +91,7 @@ DEPS=(
     "wl-copy --version|wl-clipboard|wl-clipboard|wl-clipboard"
     "curl --version|curl|curl|curl"
     "pw-record --help|pipewire|pipewire|pipewire"
+    "notify-send --version|libnotify|libnotify-bin|libnotify"
 )
 
 MISSING_CMDS=()
@@ -246,9 +247,16 @@ else
             "Server port:" "9876")
         printf "\n"
 
+        BIND_HOST="127.0.0.1"
+        if ask "Allow LAN access to whisper-server?" "n"; then
+            BIND_HOST="0.0.0.0"
+            ok "Server will be accessible on LAN"
+        fi
+
         SUDO_ARGS=("sudo" "$SCRIPT_DIR/setup-server.sh"
             "--model=$MODEL_NAME"
-            "--port=$SERVER_PORT")
+            "--port=$SERVER_PORT"
+            "--bind=$BIND_HOST")
         if [[ "$HAS_GPU" != "true" ]]; then
             SUDO_ARGS+=("--cpu")
         fi

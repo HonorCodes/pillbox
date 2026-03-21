@@ -34,7 +34,6 @@ DEFAULTS = {
     "server_url": "http://localhost:9876",
     "silence_threshold": "-20",
     "silence_duration": "3.0",
-    "position": "bottom",
     "margin_bottom": "",
     "width": "90",
     "height": "32",
@@ -42,7 +41,6 @@ DEFAULTS = {
     "theme_source": "",
     "background": "",
     "foreground": "",
-    "accent": "",
     "border": "",
 }
 
@@ -54,7 +52,6 @@ REQUIRED_COMMANDS = ["pw-record", "wtype", "wl-copy", "curl"]
 FALLBACK_COLORS = {
     "background": "0a0a0f",
     "foreground": "cdd6f4",
-    "accent": "f38ba8",
     "border": "cba6f7",
 }
 
@@ -170,15 +167,13 @@ def resolve_colors(config):
             colors["background"] = hypr.get("base", hypr.get("surface", colors["background"]))
         if "text" in hypr:
             colors["foreground"] = hypr.get("text", colors["foreground"])
-        if "red" in hypr:
-            colors["accent"] = hypr.get("red", colors["accent"])
         if "mauve" in hypr:
             colors["border"] = hypr.get("mauve", colors["border"])
         elif "lavender" in hypr:
             colors["border"] = hypr.get("lavender", colors["border"])
 
     # Config overrides take priority
-    for key in ("background", "foreground", "accent", "border"):
+    for key in ("background", "foreground", "border"):
         if config.get(key):
             colors[key] = config[key]
 
