@@ -14,9 +14,11 @@ import gi
 import json
 import math
 import os
+import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 
@@ -45,7 +47,8 @@ DEFAULTS = {
 }
 
 PIDFILE = "/tmp/pillbox.pid"
-AUDIO_FILE = "/tmp/pillbox.wav"
+
+REQUIRED_COMMANDS = ["pw-record", "wtype", "wl-copy", "curl"]
 
 # --- Theme defaults (no Hyprland theme found) ---
 FALLBACK_COLORS = {
@@ -56,13 +59,16 @@ FALLBACK_COLORS = {
 }
 
 
+def hex_rgb(hexval):
+    """Convert a hex color (without #) to (r, g, b) as ints (0-255)."""
+    hexval = hexval.lstrip("#")
+    return int(hexval[0:2], 16), int(hexval[2:4], 16), int(hexval[4:6], 16)
+
+
 def hex_to_rgba(hexval, alpha=1.0):
     """Convert a hex color (without #) to rgba() tuple (0.0-1.0)."""
-    hexval = hexval.lstrip("#")
-    r = int(hexval[0:2], 16) / 255
-    g = int(hexval[2:4], 16) / 255
-    b = int(hexval[4:6], 16) / 255
-    return r, g, b, alpha
+    r, g, b = hex_rgb(hexval)
+    return r / 255, g / 255, b / 255, alpha
 
 
 def luminance(hexval):
@@ -100,22 +106,32 @@ def find_theme_source():
     return ""
 
 
+def check_dependencies():
+    """Verify all required external commands are available."""
+    missing = [cmd for cmd in REQUIRED_COMMANDS
+               if shutil.which(cmd) is None]
+    if missing:
+        print(
+            f"pillbox: missing required commands: "
+            f"{', '.join(missing)}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+
 def detect_hyprland_gaps():
     """Read gaps_out from Hyprland config for default margin."""
-    candidates = [
-        "~/.config/hypr/hyprland.conf",
-    ]
-    for c in candidates:
-        try:
-            with open(os.path.expanduser(c)) as f:
-                for line in f:
-                    stripped = line.strip()
-                    if stripped.startswith("gaps_out"):
-                        parts = stripped.split("=", 1)
-                        if len(parts) == 2:
-                            return parts[1].strip()
-        except (FileNotFoundError, PermissionError):
-            pass
+    path = os.path.expanduser("~/.config/hypr/hyprland.conf")
+    try:
+        with open(path) as f:
+            for line in f:
+                stripped = line.strip()
+                if stripped.startswith("gaps_out"):
+                    parts = stripped.split("=", 1)
+                    if len(parts) == 2:
+                        return parts[1].strip()
+    except (FileNotFoundError, PermissionError):
+        pass
     return "30"
 
 
@@ -171,30 +187,30 @@ def resolve_colors(config):
 
 def build_css(colors):
     """Generate GTK CSS from resolved colors."""
-    bg = colors["background"]
-    border = colors["border"]
+    bg_r, bg_g, bg_b = hex_rgb(colors["background"])
+    br_r, br_g, br_b = hex_rgb(colors["border"])
 
     # Stop button uses border color as background
     # Icon color contrasts against it: white on dark, black on light
-    btn_icon = "white" if luminance(border) < 0.75 else "black"
+    btn_icon = "white" if luminance(colors["border"]) < 0.75 else "black"
 
     return f"""
 .pillbox-window {{ background: none; }}
 .pill-box {{
-    background-color: rgba({int(bg[0:2],16)}, {int(bg[2:4],16)}, {int(bg[4:6],16)}, 0.75);
+    background-color: rgba({bg_r}, {bg_g}, {bg_b}, 0.75);
     border-radius: 999px;
-    border: 2px solid rgba({int(border[0:2],16)}, {int(border[2:4],16)}, {int(border[4:6],16)}, 0.9);
+    border: 2px solid rgba({br_r}, {br_g}, {br_b}, 0.9);
     padding: 4px 10px 4px 12px;
 }}
 .stop-button {{
-    background-color: rgba({int(border[0:2],16)}, {int(border[2:4],16)}, {int(border[4:6],16)}, 0.9);
+    background-color: rgba({br_r}, {br_g}, {br_b}, 0.9);
     border-radius: 999px;
     min-width: 20px; min-height: 20px;
     padding: 0; border: none;
     color: {btn_icon}; font-size: 12px; font-weight: bold;
 }}
 .stop-button:hover {{
-    background-color: rgba({int(border[0:2],16)}, {int(border[2:4],16)}, {int(border[4:6],16)}, 1.0);
+    background-color: rgba({br_r}, {br_g}, {br_b}, 1.0);
 }}
 """
 
@@ -223,6 +239,7 @@ class Pillbox:
         self.stopping = False
         self.pipeline = None
         self.recorder = None
+        self.audio_file = None
         self.drawing_area = None
         self.win = None
         self.loop = None
@@ -271,7 +288,7 @@ class Pillbox:
         stop_btn = Gtk.Button(label="\u25A0")
         stop_btn.add_css_class("stop-button")
         stop_btn.set_valign(Gtk.Align.CENTER)
-        stop_btn.connect("clicked", lambda _: self._stop())
+        stop_btn.connect("clicked", lambda _: self._shutdown())
         pill_box.append(stop_btn)
 
         win.set_child(pill_box)
@@ -279,10 +296,12 @@ class Pillbox:
         self.win = win
 
         GLib.unix_signal_add(
-            GLib.PRIORITY_DEFAULT, signal.SIGTERM, self._stop
+            GLib.PRIORITY_DEFAULT, signal.SIGTERM,
+            self._on_sigterm,
         )
         GLib.unix_signal_add(
-            GLib.PRIORITY_DEFAULT, signal.SIGINT, self._stop
+            GLib.PRIORITY_DEFAULT, signal.SIGINT,
+            self._on_sigterm,
         )
 
         self._start()
@@ -303,11 +322,16 @@ class Pillbox:
         self.silence_start = None
         self.heard_speech = False
 
+        fd, self.audio_file = tempfile.mkstemp(
+            suffix=".wav", prefix="pillbox-",
+        )
+        os.close(fd)
+
         self.recorder = subprocess.Popen(
             [
                 "pw-record", "--rate", "16000",
                 "--channels", "1", "--format", "s16",
-                AUDIO_FILE,
+                self.audio_file,
             ],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
@@ -355,7 +379,7 @@ class Pillbox:
                 self.silence_start = time.monotonic()
             elif time.monotonic() - self.silence_start >= self.silence_duration:
                 if self.recording and not self.stopping:
-                    self._stop()
+                    self._shutdown()
 
     def _draw_waveform(self, area, cr, width, height):
         bar_width = max(3, (width - (self.num_bars - 1) * 3) / self.num_bars)
@@ -375,10 +399,15 @@ class Pillbox:
             cr.set_source_rgba(r, g, b, 0.5 + level * 0.5)
             cr.fill()
 
-    def _stop(self):
+    def _on_sigterm(self):
+        """Signal handler for SIGTERM/SIGINT."""
+        self._shutdown()
+        return False
+
+    def _shutdown(self):
         """Stop recording, send to server, type result."""
         if self.stopping:
-            return False
+            return
         self.stopping = True
         self.recording = False
 
@@ -406,25 +435,31 @@ class Pillbox:
         if self.heard_speech:
             threading.Thread(target=self._transcribe, daemon=True).start()
         else:
+            self._cleanup_audio()
+            GLib.idle_add(self._quit_now)
+
+    def _cleanup_audio(self):
+        """Remove the temporary audio file if it exists."""
+        if self.audio_file:
             try:
-                os.unlink(AUDIO_FILE)
+                os.unlink(self.audio_file)
             except OSError:
                 pass
-            GLib.idle_add(self._quit_now)
-        return False
+            self.audio_file = None
 
     def _transcribe(self):
         """Send WAV to whisper-server and type the result."""
         text = ""
         try:
             if (
-                os.path.exists(AUDIO_FILE)
-                and os.path.getsize(AUDIO_FILE) > 100
+                self.audio_file
+                and os.path.exists(self.audio_file)
+                and os.path.getsize(self.audio_file) > 100
             ):
                 result = subprocess.run(
                     [
                         "curl", "-s", "--max-time", "30",
-                        "-F", f"file=@{AUDIO_FILE}",
+                        "-F", f"file=@{self.audio_file}",
                         f"{self.server_url}/inference",
                     ],
                     capture_output=True,
@@ -438,10 +473,7 @@ class Pillbox:
         except Exception as e:
             print(f"pillbox: transcription error: {e}", file=sys.stderr)
         finally:
-            try:
-                os.unlink(AUDIO_FILE)
-            except OSError:
-                pass
+            self._cleanup_audio()
 
         if text:
             subprocess.Popen(
@@ -449,6 +481,8 @@ class Pillbox:
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
+            # Allow compositor to refocus the previous window
+            # after hiding the overlay
             time.sleep(0.15)
             subprocess.run(
                 ["wtype", "--", text],
@@ -468,6 +502,7 @@ class Pillbox:
 
 
 def main():
+    check_dependencies()
     Gst.init(None)
     config = load_config()
     colors = resolve_colors(config)
