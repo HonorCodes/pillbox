@@ -14,6 +14,17 @@ A small glassmorphic pill overlay pops up when you activate it, shows a waveform
 
 Pillbox auto-themes from your Hyprland color config, so it matches your rice out of the box.
 
+<p align="center">
+  <img src="assets/pillbox-example.png" alt="Pillbox in action" width="400">
+</p>
+
+<details>
+<summary>Full screen example</summary>
+<p align="center">
+  <img src="assets/pillbox-fullscreen-example.png" alt="Pillbox full screen" width="800">
+</p>
+</details>
+
 ## Quick Start
 
 ### 1. Install dependencies

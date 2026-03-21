@@ -33,9 +33,9 @@ DEFAULTS = {
     "silence_threshold": "-20",
     "silence_duration": "3.0",
     "position": "bottom",
-    "margin_bottom": "30",
-    "width": "100",
-    "height": "40",
+    "margin_bottom": "",
+    "width": "90",
+    "height": "32",
     "num_bars": "5",
     "theme_source": "",
     "background": "",
@@ -52,17 +52,23 @@ FALLBACK_COLORS = {
     "background": "0a0a0f",
     "foreground": "cdd6f4",
     "accent": "f38ba8",
-    "border": "45475a",
+    "border": "cba6f7",
 }
 
 
 def hex_to_rgba(hexval, alpha=1.0):
-    """Convert a hex color (without #) to rgba() CSS string."""
+    """Convert a hex color (without #) to rgba() tuple (0.0-1.0)."""
     hexval = hexval.lstrip("#")
     r = int(hexval[0:2], 16) / 255
     g = int(hexval[2:4], 16) / 255
     b = int(hexval[4:6], 16) / 255
     return r, g, b, alpha
+
+
+def luminance(hexval):
+    """Relative luminance of a hex color (0.0 = black, 1.0 = white)."""
+    r, g, b, _ = hex_to_rgba(hexval)
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
 
 
 def load_hyprland_colors(path):
@@ -94,6 +100,25 @@ def find_theme_source():
     return ""
 
 
+def detect_hyprland_gaps():
+    """Read gaps_out from Hyprland config for default margin."""
+    candidates = [
+        "~/.config/hypr/hyprland.conf",
+    ]
+    for c in candidates:
+        try:
+            with open(os.path.expanduser(c)) as f:
+                for line in f:
+                    stripped = line.strip()
+                    if stripped.startswith("gaps_out"):
+                        parts = stripped.split("=", 1)
+                        if len(parts) == 2:
+                            return parts[1].strip()
+        except (FileNotFoundError, PermissionError):
+            pass
+    return "30"
+
+
 def load_config():
     """Load pillbox.conf (Hyprland-style key = value)."""
     config = dict(DEFAULTS)
@@ -109,6 +134,11 @@ def load_config():
                     config[key.strip()] = val.strip()
     except FileNotFoundError:
         pass
+
+    # Auto-detect margin from Hyprland gaps if not explicitly set
+    if not config.get("margin_bottom"):
+        config["margin_bottom"] = detect_hyprland_gaps()
+
     return config
 
 
@@ -126,8 +156,10 @@ def resolve_colors(config):
             colors["foreground"] = hypr.get("text", colors["foreground"])
         if "red" in hypr:
             colors["accent"] = hypr.get("red", colors["accent"])
-        if "overlay" in hypr:
-            colors["border"] = hypr.get("overlay", colors["border"])
+        if "mauve" in hypr:
+            colors["border"] = hypr.get("mauve", colors["border"])
+        elif "lavender" in hypr:
+            colors["border"] = hypr.get("lavender", colors["border"])
 
     # Config overrides take priority
     for key in ("background", "foreground", "accent", "border"):
@@ -141,25 +173,28 @@ def build_css(colors):
     """Generate GTK CSS from resolved colors."""
     bg = colors["background"]
     border = colors["border"]
-    accent = colors["accent"]
+
+    # Stop button uses border color as background
+    # Icon color contrasts against it: white on dark, black on light
+    btn_icon = "white" if luminance(border) < 0.75 else "black"
 
     return f"""
 .pillbox-window {{ background: none; }}
 .pill-box {{
     background-color: rgba({int(bg[0:2],16)}, {int(bg[2:4],16)}, {int(bg[4:6],16)}, 0.75);
-    border-radius: 20px;
-    border: 1px solid rgba({int(border[0:2],16)}, {int(border[2:4],16)}, {int(border[4:6],16)}, 0.4);
+    border-radius: 999px;
+    border: 2px solid rgba({int(border[0:2],16)}, {int(border[2:4],16)}, {int(border[4:6],16)}, 0.9);
     padding: 4px 10px 4px 12px;
 }}
 .stop-button {{
-    background-color: rgba({int(accent[0:2],16)}, {int(accent[2:4],16)}, {int(accent[4:6],16)}, 0.9);
-    border-radius: 12px;
-    min-width: 24px; min-height: 24px;
+    background-color: rgba({int(border[0:2],16)}, {int(border[2:4],16)}, {int(border[4:6],16)}, 0.9);
+    border-radius: 999px;
+    min-width: 20px; min-height: 20px;
     padding: 0; border: none;
-    color: white; font-size: 12px; font-weight: bold;
+    color: {btn_icon}; font-size: 12px; font-weight: bold;
 }}
 .stop-button:hover {{
-    background-color: rgba({int(accent[0:2],16)}, {int(accent[2:4],16)}, {int(accent[4:6],16)}, 1.0);
+    background-color: rgba({int(border[0:2],16)}, {int(border[2:4],16)}, {int(border[4:6],16)}, 1.0);
 }}
 """
 
@@ -168,7 +203,15 @@ class Pillbox:
     def __init__(self, config, colors):
         self.config = config
         self.colors = colors
-        self.fg_rgba = hex_to_rgba(colors["foreground"])
+        # Waveform color: use foreground from theme, but ensure it
+        # contrasts against the background (light bars on dark bg, dark on light)
+        bg_lum = luminance(colors["background"])
+        if bg_lum < 0.3:
+            # Dark background — use light foreground (from theme or white)
+            self.fg_rgba = hex_to_rgba(colors["foreground"])
+        else:
+            # Light background — use dark waveform
+            self.fg_rgba = (0.1, 0.1, 0.1, 1.0)
         self.num_bars = int(config["num_bars"])
         self.levels = [0.0] * self.num_bars
         self.silence_threshold = float(config["silence_threshold"])
@@ -221,7 +264,7 @@ class Pillbox:
         pill_box.set_valign(Gtk.Align.CENTER)
 
         self.drawing_area = Gtk.DrawingArea()
-        self.drawing_area.set_size_request(width - 56, height - 14)
+        self.drawing_area.set_size_request(width - 46, height - 12)
         self.drawing_area.set_draw_func(self._draw_waveform)
         pill_box.append(self.drawing_area)
 
@@ -359,7 +402,15 @@ class Pillbox:
         if self.win:
             self.win.set_visible(False)
 
-        threading.Thread(target=self._transcribe, daemon=True).start()
+        # Only transcribe if speech was actually detected
+        if self.heard_speech:
+            threading.Thread(target=self._transcribe, daemon=True).start()
+        else:
+            try:
+                os.unlink(AUDIO_FILE)
+            except OSError:
+                pass
+            GLib.idle_add(self._quit_now)
         return False
 
     def _transcribe(self):
