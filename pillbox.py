@@ -31,7 +31,7 @@ from gi.repository import Gdk, GLib, Gst, Gtk, Gtk4LayerShell
 
 # --- Defaults ---
 DEFAULTS = {
-    "server_url": "http://localhost:9876",
+    "server_url": "http://localhost:9310",
     "silence_threshold": "-20",
     "silence_duration": "3.0",
     "position": "bottom-center",

@@ -244,7 +244,7 @@ else
         ok "Selected model: $MODEL_NAME"
 
         SERVER_PORT=$(ask_input \
-            "Server port:" "9876")
+            "Server port:" "9310")
         printf "\n"
 
         BIND_HOST="127.0.0.1"
@@ -271,9 +271,9 @@ else
             "${SUDO_ARGS[@]}"
             INSTALLED_SERVER=true
             # Update config with chosen port
-            if [[ "$SERVER_PORT" != "9876" ]] && \
+            if [[ "$SERVER_PORT" != "9310" ]] && \
                [[ -f "$CONFIG_DIR/pillbox.conf" ]]; then
-                sed -i "s|http://localhost:9876|http://localhost:${SERVER_PORT}|" \
+                sed -i "s|http://localhost:9310|http://localhost:${SERVER_PORT}|" \
                     "$CONFIG_DIR/pillbox.conf"
                 ok "Config updated with port $SERVER_PORT"
             fi

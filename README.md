@@ -103,7 +103,7 @@ Edit `~/.config/pillbox/pillbox.conf`:
 
 ```conf
 # Server
-server_url = http://localhost:9876
+server_url = http://localhost:9310
 
 # Silence detection
 silence_threshold = -20    # dB — raise for noisy rooms
@@ -154,7 +154,7 @@ sudo ./setup-server.sh --model=large-v3-turbo --bind=0.0.0.0
 
 # On your machine, edit config:
 # ~/.config/pillbox/pillbox.conf
-server_url = http://your-server-ip:9876
+server_url = http://your-server-ip:9310
 ```
 
 This gives you the accuracy of the large model without using your host's GPU. The installer asks about LAN binding during setup.
@@ -173,7 +173,7 @@ This gives you the accuracy of the large model without using your host's GPU. Th
 
 **Server not reachable / no transcription:**
 - Is whisper-server running? `systemctl status whisper-server`
-- Test the API directly: `curl -F "file=@test.wav" http://localhost:9876/inference`
+- Test the API directly: `curl -F "file=@test.wav" http://localhost:9310/inference`
 - Check server logs: `journalctl -u whisper-server -n 20`
 
 **Text doesn't appear in focused window:**
