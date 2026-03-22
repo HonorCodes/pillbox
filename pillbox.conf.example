@@ -43,6 +43,13 @@ height = 32
 # Number of waveform bars inside the pill.
 num_bars = 5
 
+# ── Opacity ───────────────────────────────────────
+# Transparency for each element. Range: 0.0 (invisible) to 1.0 (solid).
+opacity_background = 0.75
+opacity_border = 0.9
+opacity_button = 0.9
+opacity_waveform = 0.85
+
 # ── Theme ─────────────────────────────────────────
 # Path to a Hyprland-style color config ($variable = hexvalue).
 # Auto-detected from these locations if not set:

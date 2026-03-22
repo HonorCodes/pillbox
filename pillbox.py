@@ -39,6 +39,10 @@ DEFAULTS = {
     "width": "90",
     "height": "32",
     "num_bars": "5",
+    "opacity_background": "0.75",
+    "opacity_border": "0.9",
+    "opacity_button": "0.9",
+    "opacity_waveform": "0.85",
     "theme_source": "",
     "background": "",
     "foreground": "",
@@ -235,32 +239,34 @@ def resolve_colors(config):
     return colors
 
 
-def build_css(colors):
-    """Generate GTK CSS from resolved colors."""
+def build_css(colors, config):
+    """Generate GTK CSS from resolved colors and opacity config."""
     bg_r, bg_g, bg_b = hex_rgb(colors["background"])
     br_r, br_g, br_b = hex_rgb(colors["border"])
 
-    # Stop button uses border color as background
-    # Icon color contrasts against it: white on dark, black on light
+    bg_alpha = float(config.get("opacity_background", "0.75"))
+    br_alpha = float(config.get("opacity_border", "0.9"))
+    btn_alpha = float(config.get("opacity_button", "0.9"))
+
     btn_icon = "white" if luminance(colors["border"]) < 0.75 else "black"
 
     return f"""
 .pillbox-window {{ background: none; }}
 .pill-box {{
-    background-color: rgba({bg_r}, {bg_g}, {bg_b}, 0.75);
+    background-color: rgba({bg_r}, {bg_g}, {bg_b}, {bg_alpha});
     border-radius: 999px;
-    border: 2px solid rgba({br_r}, {br_g}, {br_b}, 0.9);
+    border: 2px solid rgba({br_r}, {br_g}, {br_b}, {br_alpha});
     padding: 4px 10px 4px 12px;
 }}
 .stop-button {{
-    background-color: rgba({br_r}, {br_g}, {br_b}, 0.9);
+    background-color: rgba({br_r}, {br_g}, {br_b}, {btn_alpha});
     border-radius: 999px;
     min-width: 20px; min-height: 20px;
     padding: 0; border: none;
     color: {btn_icon}; font-size: 12px; font-weight: bold;
 }}
 .stop-button:hover {{
-    background-color: rgba({br_r}, {br_g}, {br_b}, 1.0);
+    background-color: rgba({br_r}, {br_g}, {br_b}, {min(btn_alpha + 0.1, 1.0)});
 }}
 """
 
@@ -273,12 +279,11 @@ class Pillbox:
         # contrasts against the background (light bars on dark bg, dark on light)
         bg_lum = luminance(colors["background"])
         if bg_lum < 0.3:
-            # Dark background — use light foreground (from theme or white)
             r, g, b = hex_rgb(colors["foreground"])
-            self.fg_rgba = (r / 255, g / 255, b / 255, 1.0)
+            self.fg_rgba = (r / 255, g / 255, b / 255)
         else:
-            # Light background — use dark waveform
-            self.fg_rgba = (0.1, 0.1, 0.1, 1.0)
+            self.fg_rgba = (0.1, 0.1, 0.1)
+        self.waveform_opacity = float(config.get("opacity_waveform", "0.85"))
         self.num_bars = int(config["num_bars"])
         self.levels = [0.0] * self.num_bars
         self.silence_threshold = float(config["silence_threshold"])
@@ -300,7 +305,7 @@ class Pillbox:
             f.write(str(os.getpid()))
 
         css_provider = Gtk.CssProvider()
-        css_provider.load_from_string(build_css(self.colors))
+        css_provider.load_from_string(build_css(self.colors, self.config))
         Gtk.StyleContext.add_provider_for_display(
             Gdk.Display.get_default(), css_provider,
             Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
@@ -449,7 +454,8 @@ class Pillbox:
     def _draw_waveform(self, area, cr, width, height):
         bar_width = max(3, (width - (self.num_bars - 1) * 3) / self.num_bars)
         gap = 3
-        r, g, b, _ = self.fg_rgba
+        r, g, b = self.fg_rgba
+        base_alpha = self.waveform_opacity
         for i, level in enumerate(self.levels):
             x = i * (bar_width + gap)
             bar_h = 4 + level * (height - 8)
@@ -461,7 +467,9 @@ class Pillbox:
             cr.arc(x + bar_width - rad, y + bar_h - rad, rad, 0, 0.5 * math.pi)
             cr.arc(x + rad, y + bar_h - rad, rad, 0.5 * math.pi, math.pi)
             cr.close_path()
-            cr.set_source_rgba(r, g, b, 0.5 + level * 0.5)
+            # Scale opacity with audio level for animation effect
+            alpha = (0.3 + level * 0.7) * base_alpha
+            cr.set_source_rgba(r, g, b, alpha)
             cr.fill()
 
     def _on_sigterm(self):
