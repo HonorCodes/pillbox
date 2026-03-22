@@ -34,7 +34,8 @@ DEFAULTS = {
     "server_url": "http://localhost:9876",
     "silence_threshold": "-20",
     "silence_duration": "3.0",
-    "margin_bottom": "",
+    "position": "bottom-center",
+    "margin": "",
     "width": "90",
     "height": "32",
     "num_bars": "5",
@@ -42,6 +43,20 @@ DEFAULTS = {
     "background": "",
     "foreground": "",
     "border": "",
+}
+
+# Position → layer-shell anchor mapping
+# Each position sets which edges to anchor to. Unanchored axes center.
+POSITIONS = {
+    "top-left":      {"top": True,  "bottom": False, "left": True,  "right": False},
+    "top-center":    {"top": True,  "bottom": False, "left": False, "right": False},
+    "top-right":     {"top": True,  "bottom": False, "left": False, "right": True},
+    "center-left":   {"top": False, "bottom": False, "left": True,  "right": False},
+    "center":        {"top": False, "bottom": False, "left": False, "right": False},
+    "center-right":  {"top": False, "bottom": False, "left": False, "right": True},
+    "bottom-left":   {"top": False, "bottom": True,  "left": True,  "right": False},
+    "bottom-center": {"top": False, "bottom": True,  "left": False, "right": False},
+    "bottom-right":  {"top": False, "bottom": True,  "left": False, "right": True},
 }
 
 PIDFILE = "/tmp/pillbox.pid"
@@ -189,8 +204,8 @@ def load_config():
         pass
 
     # Auto-detect margin from Hyprland gaps if not explicitly set
-    if not config.get("margin_bottom"):
-        config["margin_bottom"] = detect_hyprland_gaps()
+    if not config.get("margin"):
+        config["margin"] = detect_hyprland_gaps()
 
     return config
 
@@ -293,7 +308,9 @@ class Pillbox:
 
         width = int(self.config["width"])
         height = int(self.config["height"])
-        margin = int(self.config["margin_bottom"])
+        margin = int(self.config["margin"])
+        position = self.config.get("position", "bottom-center")
+        anchors = POSITIONS.get(position, POSITIONS["bottom-center"])
 
         win = Gtk.Window()
         win.set_default_size(width, height)
@@ -302,13 +319,25 @@ class Pillbox:
         Gtk4LayerShell.init_for_window(win)
         Gtk4LayerShell.set_layer(win, Gtk4LayerShell.Layer.OVERLAY)
         Gtk4LayerShell.set_namespace(win, "pillbox")
-        Gtk4LayerShell.set_anchor(win, Gtk4LayerShell.Edge.BOTTOM, True)
-        Gtk4LayerShell.set_margin(win, Gtk4LayerShell.Edge.BOTTOM, margin)
         Gtk4LayerShell.set_keyboard_mode(
             win, Gtk4LayerShell.KeyboardMode.NONE
         )
-        Gtk4LayerShell.set_anchor(win, Gtk4LayerShell.Edge.LEFT, False)
-        Gtk4LayerShell.set_anchor(win, Gtk4LayerShell.Edge.RIGHT, False)
+
+        # Set anchors based on configured position
+        Gtk4LayerShell.set_anchor(win, Gtk4LayerShell.Edge.TOP, anchors["top"])
+        Gtk4LayerShell.set_anchor(win, Gtk4LayerShell.Edge.BOTTOM, anchors["bottom"])
+        Gtk4LayerShell.set_anchor(win, Gtk4LayerShell.Edge.LEFT, anchors["left"])
+        Gtk4LayerShell.set_anchor(win, Gtk4LayerShell.Edge.RIGHT, anchors["right"])
+
+        # Apply margin to the anchored edges
+        if anchors["top"]:
+            Gtk4LayerShell.set_margin(win, Gtk4LayerShell.Edge.TOP, margin)
+        if anchors["bottom"]:
+            Gtk4LayerShell.set_margin(win, Gtk4LayerShell.Edge.BOTTOM, margin)
+        if anchors["left"]:
+            Gtk4LayerShell.set_margin(win, Gtk4LayerShell.Edge.LEFT, margin)
+        if anchors["right"]:
+            Gtk4LayerShell.set_margin(win, Gtk4LayerShell.Edge.RIGHT, margin)
 
         pill_box = Gtk.Box(
             orientation=Gtk.Orientation.HORIZONTAL, spacing=6

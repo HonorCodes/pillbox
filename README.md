@@ -102,21 +102,28 @@ Text is also copied to your clipboard automatically.
 Edit `~/.config/pillbox/pillbox.conf`:
 
 ```conf
-# Whisper server URL (default: localhost)
+# Server
 server_url = http://localhost:9876
 
 # Silence detection
-silence_threshold = -20    # dB — raise for noisy rooms, lower for quiet
+silence_threshold = -20    # dB — raise for noisy rooms
 silence_duration = 3.0     # seconds before auto-stop
 
-# Pill size (pixels)
+# Position: top-left, top-center, top-right,
+#           center-left, center, center-right,
+#           bottom-left, bottom-center, bottom-right
+position = bottom-center
+
+# Margin from screen edge (auto-detected from Hyprland gaps_out)
+# margin = 30
+
+# Pill size
 width = 90
 height = 32
 num_bars = 5
-
-# Bottom margin — auto-detected from Hyprland's gaps_out if not set
-# margin_bottom = 30
 ```
+
+See `pillbox.conf.example` for the full reference with all options and color format docs.
 
 ## Theming
 

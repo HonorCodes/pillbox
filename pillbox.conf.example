@@ -1,49 +1,68 @@
+# ─────────────────────────────────────────────────
 # Pillbox Configuration
+# ─────────────────────────────────────────────────
+#
 # Copy to ~/.config/pillbox/pillbox.conf and edit.
 # Syntax follows Hyprland conventions: key = value
+# Lines starting with # are comments.
+#
+# All values shown below are the defaults.
+# Uncomment and change only what you need.
 
-# ── Server ──
+# ── Server ────────────────────────────────────────
 # URL of your whisper-server instance (whisper.cpp HTTP API).
-# Default: http://localhost:9876
 # For remote servers, set to the server's address.
 server_url = http://localhost:9876
 
-# ── Behavior ──
+# ── Behavior ──────────────────────────────────────
 # Silence threshold in dB. Speech above this level is detected.
-# Raise if background noise causes false triggers (e.g., music).
-# Lower if soft speech isn't detected.
+# Raise (e.g. -15) if background noise causes false triggers.
+# Lower (e.g. -25) if soft speech isn't detected.
 silence_threshold = -20
 
 # Seconds of silence after speech before auto-stopping.
 silence_duration = 3.0
 
-# ── Appearance ──
-# Distance from screen edge (pixels).
-# Auto-detected from Hyprland gaps_out if not set.
-# margin_bottom = 30
+# ── Position ──────────────────────────────────────
+# Where the pill appears on screen.
+# Options:
+#   top-left      top-center      top-right
+#   center-left   center          center-right
+#   bottom-left   bottom-center   bottom-right
+position = bottom-center
 
+# Margin from the screen edge (pixels).
+# Auto-detected from Hyprland's gaps_out if not set.
+# margin = 30
+
+# ── Appearance ────────────────────────────────────
 # Pill dimensions (pixels).
 width = 90
 height = 32
 
-# Number of waveform bars.
+# Number of waveform bars inside the pill.
 num_bars = 5
 
-# ── Theme ──
-# Path to Hyprland-style color config ($variable = hexvalue).
-# Auto-detected from common locations if not set:
+# ── Theme ─────────────────────────────────────────
+# Path to a Hyprland-style color config ($variable = hexvalue).
+# Auto-detected from these locations if not set:
 #   ~/.config/theme/colors.conf
 #   ~/.config/hypr/colors.conf
 # theme_source = ~/.config/theme/colors.conf
 
-# Color overrides (6-digit hex, no #).
-# These override any colors loaded from the theme source.
+# Color overrides. These take priority over theme colors.
+# Supports all Hyprland color formats:
+#   hex:     cba6f7 or #cba6f7
+#   rgb:     rgb(cba6f7) or rgb(203,166,247)
+#   rgba:    rgba(cba6f7ee) or rgba(203,166,247,0.9)
+#   legacy:  0xeecba6f7
+#   short:   c8f (expands to cc88ff)
 #
 # Pill background (from $base or $surface):
 # background = 0a0a0f
 #
-# Waveform bars (from $text, auto-contrasts against background):
+# Waveform bars (from $text — auto-contrasts against background):
 # foreground = cdd6f4
 #
-# Pill border + stop button background (from $mauve or $lavender):
+# Pill border + stop button (from $mauve or $lavender):
 # border = cba6f7
