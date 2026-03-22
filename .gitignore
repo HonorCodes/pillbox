@@ -3,5 +3,4 @@ __pycache__/
 *.wav
 *.pid
 .beads/
-.beads/
 AGENTS.md
