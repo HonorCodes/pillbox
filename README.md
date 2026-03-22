@@ -68,7 +68,7 @@ Pillbox uses OpenAI's Whisper speech recognition model via [whisper.cpp](https:/
 
 | Model | Download | VRAM / RAM | Inference | Accuracy | Recommended for |
 |-------|----------|-----------|-----------|----------|-----------------|
-| `tiny.en` | 75 MB | ~400 MB | ~0.1s | Basic | Raspberry Pi, old laptops, quick notes |
+| `tiny.en` | 75 MB | ~400 MB | ~0.1s | Basic | Raspberry Pi, older hardware, quick notes |
 | `base.en` | 148 MB | ~500 MB | ~0.3s | Good | Any modern CPU, daily use without GPU |
 | `small.en` | 488 MB | ~1 GB | ~0.8s | Great | Mid-range CPU (i5/Ryzen 5+) |
 | `large-v3-turbo` | 1.5 GB | ~3 GB | ~0.5s (GPU) | Best | **NVIDIA GPU recommended** (GTX 1060+) |
@@ -145,12 +145,12 @@ By default, the server binds to `127.0.0.1` (localhost only). If you want to run
 # On the server (--bind exposes to LAN):
 sudo ./setup-server.sh --model=large-v3-turbo --bind=0.0.0.0
 
-# On your laptop, edit config:
+# On your machine, edit config:
 # ~/.config/pillbox/pillbox.conf
 server_url = http://your-server-ip:9876
 ```
 
-This gives you the accuracy of the large model without using your laptop's GPU. The installer asks about LAN binding during setup.
+This gives you the accuracy of the large model without using your host's GPU. The installer asks about LAN binding during setup.
 
 ## Troubleshooting
 
