@@ -246,9 +246,6 @@ def build_css(colors, config):
 
     bg_alpha = float(config.get("opacity_background", "0.75"))
     br_alpha = float(config.get("opacity_border", "0.9"))
-    btn_alpha = float(config.get("opacity_button", "0.9"))
-
-    btn_icon = "white" if luminance(colors["border"]) < 0.75 else "black"
 
     return f"""
 .pillbox-window {{ background: none; }}
@@ -256,17 +253,7 @@ def build_css(colors, config):
     background-color: rgba({bg_r}, {bg_g}, {bg_b}, {bg_alpha});
     border-radius: 999px;
     border: 2px solid rgba({br_r}, {br_g}, {br_b}, {br_alpha});
-    padding: 4px 10px 4px 12px;
-}}
-.stop-button {{
-    background-color: rgba({br_r}, {br_g}, {br_b}, {btn_alpha});
-    border-radius: 999px;
-    min-width: 20px; min-height: 20px;
-    padding: 0; border: none;
-    color: {btn_icon}; font-size: 12px; font-weight: bold;
-}}
-.stop-button:hover {{
-    background-color: rgba({br_r}, {br_g}, {br_b}, {min(btn_alpha + 0.1, 1.0)});
+    padding: 4px 6px;
 }}
 """
 
@@ -284,6 +271,11 @@ class Pillbox:
         else:
             self.fg_rgba = (0.1, 0.1, 0.1)
         self.waveform_opacity = float(config.get("opacity_waveform", "0.85"))
+        # Stop button colors (drawn with Cairo)
+        br_r, br_g, br_b = hex_rgb(colors["border"])
+        self.btn_rgba = (br_r / 255, br_g / 255, br_b / 255)
+        self.btn_opacity = float(config.get("opacity_button", "0.9"))
+        self.btn_icon_light = luminance(colors["border"]) < 0.75
         self.num_bars = int(config["num_bars"])
         self.levels = [0.0] * self.num_bars
         self.silence_threshold = float(config["silence_threshold"])
@@ -351,15 +343,20 @@ class Pillbox:
         pill_box.set_valign(Gtk.Align.CENTER)
 
         self.drawing_area = Gtk.DrawingArea()
-        self.drawing_area.set_size_request(width - 46, height - 12)
+        self.drawing_area.set_size_request(width - 40, height - 12)
         self.drawing_area.set_draw_func(self._draw_waveform)
         pill_box.append(self.drawing_area)
 
-        stop_btn = Gtk.Button(label="\u25A0")
-        stop_btn.add_css_class("stop-button")
-        stop_btn.set_valign(Gtk.Align.CENTER)
-        stop_btn.connect("clicked", lambda _: self._shutdown())
-        pill_box.append(stop_btn)
+        # Stop button drawn with Cairo for pixel-perfect centering
+        btn_size = height - 12
+        self.stop_area = Gtk.DrawingArea()
+        self.stop_area.set_size_request(btn_size, btn_size)
+        self.stop_area.set_draw_func(self._draw_stop_button)
+        self.stop_area.set_valign(Gtk.Align.CENTER)
+        click = Gtk.GestureClick()
+        click.connect("released", lambda *_: self._shutdown())
+        self.stop_area.add_controller(click)
+        pill_box.append(self.stop_area)
 
         win.set_child(pill_box)
         win.present()
@@ -471,6 +468,35 @@ class Pillbox:
             alpha = (0.3 + level * 0.7) * base_alpha
             cr.set_source_rgba(r, g, b, alpha)
             cr.fill()
+
+    def _draw_stop_button(self, area, cr, width, height):
+        """Draw a circle with a centered square inside."""
+        r, g, b = self.btn_rgba
+        alpha = self.btn_opacity
+
+        # Draw circle (fills the drawing area)
+        cx, cy = width / 2, height / 2
+        radius = min(width, height) / 2
+        cr.arc(cx, cy, radius, 0, 2 * math.pi)
+        cr.set_source_rgba(r, g, b, alpha)
+        cr.fill()
+
+        # Draw centered square (1/3 of circle diameter)
+        sq = radius * 0.7
+        if self.btn_icon_light:
+            cr.set_source_rgba(1.0, 1.0, 1.0, 0.95)
+        else:
+            cr.set_source_rgba(0.0, 0.0, 0.0, 0.85)
+        # Rounded square
+        sq_r = sq * 0.15  # corner radius
+        x0, y0 = cx - sq / 2, cy - sq / 2
+        cr.new_sub_path()
+        cr.arc(x0 + sq_r, y0 + sq_r, sq_r, math.pi, 1.5 * math.pi)
+        cr.arc(x0 + sq - sq_r, y0 + sq_r, sq_r, 1.5 * math.pi, 0)
+        cr.arc(x0 + sq - sq_r, y0 + sq - sq_r, sq_r, 0, 0.5 * math.pi)
+        cr.arc(x0 + sq_r, y0 + sq - sq_r, sq_r, 0.5 * math.pi, math.pi)
+        cr.close_path()
+        cr.fill()
 
     def _on_sigterm(self):
         """Signal handler for SIGTERM/SIGINT."""
