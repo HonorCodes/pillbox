@@ -56,22 +56,62 @@ FALLBACK_COLORS = {
 }
 
 
-def hex_rgb(hexval):
-    """Convert a hex color (without #) to (r, g, b) as ints (0-255)."""
-    hexval = hexval.lstrip("#")
-    return int(hexval[0:2], 16), int(hexval[2:4], 16), int(hexval[4:6], 16)
+def parse_color(val):
+    """Parse a Hyprland color value to (r, g, b) ints (0-255).
+
+    Supports all official Hyprland formats:
+      rgba(RRGGBBAA) or rgba(R,G,B,A)  — hex or decimal
+      rgb(RRGGBB)    or rgb(R,G,B)     — hex or decimal
+      0xAARRGGBB                        — legacy ARGB
+      RRGGBB or #RRGGBB                — bare hex
+      RGB or #RGB                       — 3-char shorthand
+
+    Returns None on failure.
+    """
+    val = val.strip().lstrip("#")
+
+    try:
+        if val.startswith("rgba(") and val.endswith(")"):
+            inner = val[5:-1]
+            if "," in inner:
+                parts = [p.strip() for p in inner.split(",")]
+                return int(parts[0]), int(parts[1]), int(parts[2])
+            return int(inner[0:2], 16), int(inner[2:4], 16), int(inner[4:6], 16)
+
+        if val.startswith("rgb(") and val.endswith(")"):
+            inner = val[4:-1]
+            if "," in inner:
+                parts = [p.strip() for p in inner.split(",")]
+                return int(parts[0]), int(parts[1]), int(parts[2])
+            return int(inner[0:2], 16), int(inner[2:4], 16), int(inner[4:6], 16)
+
+        if val.startswith("0x") and len(val) == 10:
+            return int(val[4:6], 16), int(val[6:8], 16), int(val[8:10], 16)
+
+        if len(val) == 3:
+            val = val[0] * 2 + val[1] * 2 + val[2] * 2
+
+        if len(val) >= 6:
+            return int(val[0:2], 16), int(val[2:4], 16), int(val[4:6], 16)
+    except (ValueError, IndexError):
+        pass
+
+    return None
 
 
-def hex_to_rgba(hexval, alpha=1.0):
-    """Convert a hex color (without #) to rgba() tuple (0.0-1.0)."""
-    r, g, b = hex_rgb(hexval)
-    return r / 255, g / 255, b / 255, alpha
+def hex_rgb(val, fallback="888888"):
+    """Parse a color value, returning (r, g, b) with fallback on failure."""
+    result = parse_color(val)
+    if result is None:
+        print(f"pillbox: invalid color '{val}', using fallback", file=sys.stderr)
+        return parse_color(fallback)
+    return result
 
 
-def luminance(hexval):
-    """Relative luminance of a hex color (0.0 = black, 1.0 = white)."""
-    r, g, b, _ = hex_to_rgba(hexval)
-    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+def luminance(val):
+    """Relative luminance of a color (0.0 = black, 1.0 = white)."""
+    r, g, b = hex_rgb(val)
+    return 0.2126 * (r / 255) + 0.7152 * (g / 255) + 0.0722 * (b / 255)
 
 
 def load_hyprland_colors(path):
@@ -219,7 +259,8 @@ class Pillbox:
         bg_lum = luminance(colors["background"])
         if bg_lum < 0.3:
             # Dark background — use light foreground (from theme or white)
-            self.fg_rgba = hex_to_rgba(colors["foreground"])
+            r, g, b = hex_rgb(colors["foreground"])
+            self.fg_rgba = (r / 255, g / 255, b / 255, 1.0)
         else:
             # Light background — use dark waveform
             self.fg_rgba = (0.1, 0.1, 0.1, 1.0)
