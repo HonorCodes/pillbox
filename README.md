@@ -99,50 +99,89 @@ Text is also copied to your clipboard automatically.
 
 ## Configuration
 
-Edit `~/.config/pillbox/pillbox.conf`:
+Edit `~/.config/pillbox/pillbox.conf` (created by the installer). All settings use Hyprland-style `key = value` syntax.
+
+### Server
 
 ```conf
-# Server
 server_url = http://localhost:9310
+```
 
-# Silence detection
-silence_threshold = -20    # dB — raise for noisy rooms
-silence_duration = 3.0     # seconds before auto-stop
+### Behavior
 
-# Position: top-left, top-center, top-right,
-#           center-left, center, center-right,
-#           bottom-left, bottom-center, bottom-right
+```conf
+silence_threshold = -20    # dB — raise for noisy rooms, lower for quiet mics
+silence_duration = 3.0     # seconds of silence before auto-stop
+```
+
+### Position & Size
+
+```conf
+# Where the pill appears on screen
+#   top-left      top-center      top-right
+#   center-left   center          center-right
+#   bottom-left   bottom-center   bottom-right
 position = bottom-center
 
-# Margin from screen edge (auto-detected from Hyprland gaps_out)
+# Margin from the nearest screen edge (pixels)
+# Auto-detected from Hyprland's gaps_out if not set
 # margin = 30
 
-# Pill size
+# Pill dimensions
 width = 90
 height = 32
 num_bars = 5
 ```
 
-See `pillbox.conf.example` for the full reference with all options and color format docs.
+### Opacity
 
-## Theming
-
-Pillbox auto-reads your Hyprland color theme from `~/.config/theme/colors.conf` or `~/.config/hypr/colors.conf` and maps:
-
-| Theme variable | Pillbox element |
-|---|---|
-| `$base` / `$surface` | Pill background |
-| `$text` | Waveform bars |
-| `$mauve` / `$lavender` | Border + stop button |
-
-Colors auto-contrast (light bars on dark backgrounds, dark on light). Override anything in `pillbox.conf`:
+Each element's transparency can be tuned independently. Range: `0.0` (invisible) to `1.0` (solid).
 
 ```conf
+opacity_background = 0.75    # pill body
+opacity_border = 0.9         # border outline
+opacity_button = 0.9         # stop button
+opacity_waveform = 0.85      # waveform bars (scales with audio level)
+```
+
+### Colors
+
+Colors are auto-detected from your Hyprland theme (see Theming below). To override manually:
+
+```conf
+# 6-digit hex (no #)
 background = 1a1b26
+foreground = c0caf5
 border = 7aa2f7
 ```
 
-If no theme is found, Pillbox uses a dark default that works on most setups.
+All [Hyprland color formats](https://wiki.hyprland.org/Configuring/Variables/#colors) are supported: `rgb()`, `rgba()`, `0xAARRGGBB`, `#hex`, and 3-char shorthand.
+
+The full config reference with all defaults is in [`pillbox.conf.example`](pillbox.conf.example).
+
+## Theming
+
+Pillbox auto-detects your Hyprland color theme from:
+- `~/.config/theme/colors.conf`
+- `~/.config/hypr/colors.conf`
+
+It reads `$variable = hexvalue` definitions and maps them:
+
+| Theme variable | Pillbox element | Fallback |
+|---|---|---|
+| `$base` or `$surface` | Pill background | `0a0a0f` |
+| `$text` | Waveform bars | `cdd6f4` |
+| `$mauve` or `$lavender` | Border + stop button | `cba6f7` |
+
+**Auto-contrast:** Waveform bars are light on dark backgrounds, dark on light. The stop button icon (square) switches between white and black based on the border color's luminance.
+
+**Override priority:** `pillbox.conf` overrides > Hyprland theme > built-in fallbacks.
+
+If no theme is found, Pillbox uses a dark glassmorphic default that works on most setups. Set `theme_source` in your config to point to a specific file:
+
+```conf
+theme_source = ~/.config/theme/colors.conf
+```
 
 ## Remote Server
 
